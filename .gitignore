@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+
+# Packaging / build artifacts
+build/
+dist/
+*.spec
+!Structura.spec
+
+# Virtual envs
+.venv/
+venv/
+
+# Test / cache
+.pytest_cache/
+.ruff_cache/
+.pyinstaller-cache/
+.tmp-tests/
+
+# IDE / tool dirs
+.vscode/
+.idea/
+.claude/
+.codex/
+.superpowers/
+settings.local.json
+
+# Temp files
+*.log
+*.tmp
+*.orig
