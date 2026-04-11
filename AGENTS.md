@@ -3,7 +3,7 @@
 **Package:** `structura`
 **Version:** 0.1.0
 
-Use this file with `/Users/home/Workspace/Apps/AGENTS.md`. It only records Structura-specific context.
+Use this file with `../AGENTS.md`. It only records Structura-specific context.
 
 ## Purpose And Entry Points
 
@@ -13,12 +13,31 @@ Use this file with `/Users/home/Workspace/Apps/AGENTS.md`. It only records Struc
 - Build through workspace wrappers: `razorbuild Structura`
 - Full release build (code signing): `./build.sh`
 
+## Design Rationale: Single-File Architecture
+
+`Structura.py` is a single ~4,700-line file by deliberate choice — not by accident or neglect.
+
+**Why:**
+- Structura's components (scanner, tree model, Qt delegate, paint routines, context menu,
+  toolbar, status bar) are tightly coupled by design. Splitting them into modules would require
+  threading the same 3–4 objects through every call boundary, producing more complexity than
+  it eliminates.
+- There is no reuse surface. No other app imports from Structura. The standard benefit of
+  modules (enabling reuse, limiting blast radius of changes) simply does not apply here.
+- Disk-usage UI logic has high spatial locality: changing how a node is *painted* almost always
+  requires a matching change to how it is *selected*, *measured*, or *labeled*. One file means
+  one scroll, not four open tabs.
+
+**The boundary rule:** If you add something genuinely decoupled — a standalone utility with no
+Qt dependency (e.g., a pure data transformer) — extract it into `src/structura/`. Everything
+with Qt coupling stays in `Structura.py`. When in doubt, keep it in the single file.
+
 ## Non-Obvious Rules
 
 - `build.sh` is the primary release build path — it handles ad-hoc code signing in addition to
   the PyInstaller bundle. `razorbuild Structura` runs the simpler universal wrapper.
 - `build.sh` has its own `create-dmg` call. DMG settings must stay in sync with the locked
-  values in `.razorcore/universal-build.sh`: `600×350, icon 100, (175,150), (425,150)`.
+  values in `../.razorcore/universal-build.sh`: `600×350, icon 100, (175,150), (425,150)`.
 - All application logic lives in `Structura.py` at the repo root — **do not split it into modules**.
   `src/main.py` is only a thin path-fixing entrypoint.
 - Frame rate is extracted from QuickTime atoms directly — no ffmpeg dependency.
@@ -60,4 +79,9 @@ Before tagging a release, verify all of the following:
 
 ### What CI Does Not Prove
 > Green CI is necessary but not sufficient for a safe release.
-> macOS code signing, DMG layout, and filesystem permission edge cases require manual verification.
+> Source site behavior (4Charm), macOS permissions (Nexus), and external tools (L!bra/Papyrus)
+> cannot be fully validated by static CI checks.
+
+## Shared Links
+- Skills SSOT: `../../Skills`
+- MCP Config: `../../mcp.json`
