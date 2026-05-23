@@ -52,6 +52,9 @@ skills
 .agent/
 .agents/
 
+# Razorcore local marker files
+.razorcore-enabled
+
 # Session backups and local task files
 AGENTS.md.backup.*
 INSTRUCTIONS.md
