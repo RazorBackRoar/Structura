@@ -36,6 +36,10 @@ class BuildEntrypointTest(unittest.TestCase):
             spec_text,
         )
 
+    def test_pyinstaller_spec_does_not_exclude_runtime_stdlib_imports(self):
+        spec_text = SPEC_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("'html'", spec_text)
+
     def test_source_entrypoint_delegates_to_structura_main(self):
         module_path = ROOT / "src" / "main.py"
         module_spec = importlib.util.spec_from_file_location(

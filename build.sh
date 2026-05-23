@@ -20,7 +20,7 @@ echo "=== Building ${APP_NAME}.app (arm64) ==="
 PYINSTALLER_TARGET_ARCH=arm64 uv run pyinstaller --clean --noconfirm "$SPEC_FILE"
 
 echo ""
-echo "=== Signing ${APP_NAME}.app (ad-hoc) ==="
+echo "Signing: ad-hoc (Signing identity: -, RazorBackRoar)"
 codesign --deep --force --sign - \
   --identifier "$BUNDLE_ID" \
   "${DIST_DIR}/${APP_NAME}.app"

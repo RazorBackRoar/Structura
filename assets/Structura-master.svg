@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg-gradient" x1="124" y1="82" x2="910" y2="944" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A1830"/>
+      <stop offset="0.24" stop-color="#030915"/>
+      <stop offset="0.54" stop-color="#010206"/>
+      <stop offset="1" stop-color="#000103"/>
+    </linearGradient>
+    <radialGradient id="core-glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 494) rotate(90) scale(418 448)">
+      <stop offset="0" stop-color="#0F315E" stop-opacity="0.92"/>
+      <stop offset="0.28" stop-color="#08203D" stop-opacity="0.64"/>
+      <stop offset="0.68" stop-color="#02050C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#02050C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bottom-bloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 836) rotate(90) scale(170 308)">
+      <stop offset="0" stop-color="#0E5EAC" stop-opacity="0.34"/>
+      <stop offset="0.5" stop-color="#09447D" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#09447D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="frame-stroke" x1="110" y1="96" x2="890" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6BD4FF" stop-opacity="0.72"/>
+      <stop offset="0.26" stop-color="#A8F0FF" stop-opacity="0.22"/>
+      <stop offset="0.62" stop-color="#2A5A93" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#54B5FF" stop-opacity="0.40"/>
+    </linearGradient>
+    <linearGradient id="symbol-stroke" x1="232" y1="744" x2="792" y2="172" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#39B8FF"/>
+      <stop offset="0.44" stop-color="#EAFDFF"/>
+      <stop offset="0.7" stop-color="#80D8FF"/>
+      <stop offset="1" stop-color="#4AA7FF"/>
+    </linearGradient>
+    <clipPath id="rounded-clip"><rect x="40" y="40" width="944" height="944" rx="228"/></clipPath>
+    <filter id="edge-glow" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="12" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 0.72 0 0 0  0 0.98 1 0 0  0 0 0 1 0"/></filter>
+    <filter id="soft-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="22"/></filter>
+    <filter id="reflection-blur" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="symbol-glow" x="120" y="90" width="784" height="744" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="6.5" result="blur1"/><feColorMatrix in="blur1" type="matrix" values="1 0 0 0 0  0 0.82 0 0 0  0 0.96 1 0 0  0 0 0 1 0"/></filter>
+    <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+    <radialGradient id="reflection-grad" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(316 168) rotate(35) scale(330 122)"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.54"/><stop offset="0.46" stop-color="#CFE8FF" stop-opacity="0.14"/><stop offset="1" stop-color="#CFE8FF" stop-opacity="0"/></radialGradient>
+    <radialGradient id="tip-core-grad" cx="0" cy="0" r="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="0.58" stop-color="#D6F8FF"/><stop offset="1" stop-color="#47AFFF"/></radialGradient>
+    <style>
+      .texture path, .texture circle { stroke: #5FB9FF; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.075; }
+      .texture circle { fill: #74CFFF; stroke: none; opacity: 0.13; }
+      .symbol-glow line { stroke: #48C7FF; stroke-width: 24; stroke-linecap: round; stroke-linejoin: round; opacity: 0.28; }
+      .symbol-main line { stroke: url(#symbol-stroke); stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; }
+      .symbol-core line { stroke: #FFFFFF; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.95; }
+      .joint { fill: #B7F2FF; opacity: 0.82; }
+      .tip-glow { fill: #4EC9FF; opacity: 0.22; }
+      .tip-shell { fill: url(#tip-core-grad); }
+      .tip-core { fill: #FFFFFF; opacity: 0.97; }
+      .tip-spark { fill: #FFFFFF; opacity: 0.70; }
+    </style>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="220" fill="none" stroke="#49B1FF" stroke-opacity="0.42" stroke-width="16" filter="url(#edge-glow)"/>
+  <g clip-path="url(#rounded-clip)">
+    <rect x="40" y="40" width="944" height="944" rx="228" fill="url(#bg-gradient)"/>
+    <rect x="40" y="40" width="944" height="944" rx="228" fill="url(#core-glow)"/>
+    <rect x="40" y="40" width="944" height="944" rx="228" fill="url(#bottom-bloom)"/>
+    <g class="texture"><path d="M 120 176 H 224 V 120 H 292" />
+<path d="M 108 262 H 176 V 320 H 258" />
+<path d="M 156 360 V 290 H 248 V 244" />
+<path d="M 126 744 H 222 V 806 H 302" />
+<path d="M 176 878 V 806 H 256 V 744" />
+<path d="M 110 668 H 194 V 620 H 252" />
+<path d="M 904 176 H 800 V 120 H 732" />
+<path d="M 916 262 H 848 V 320 H 766" />
+<path d="M 868 360 V 290 H 776 V 244" />
+<path d="M 898 744 H 802 V 806 H 722" />
+<path d="M 848 878 V 806 H 768 V 744" />
+<path d="M 914 668 H 830 V 620 H 772" /><circle cx="292" cy="120" r="4" />
+<circle cx="258" cy="320" r="4" />
+<circle cx="248" cy="244" r="4" />
+<circle cx="302" cy="806" r="4" />
+<circle cx="256" cy="744" r="4" />
+<circle cx="252" cy="620" r="4" />
+<circle cx="732" cy="120" r="4" />
+<circle cx="766" cy="320" r="4" />
+<circle cx="776" cy="244" r="4" />
+<circle cx="722" cy="806" r="4" />
+<circle cx="768" cy="744" r="4" />
+<circle cx="772" cy="620" r="4" /></g>
+    <ellipse cx="316" cy="176" rx="330" ry="118" fill="url(#reflection-grad)" filter="url(#reflection-blur)"/>
+    <path d="M 182 816 C 278 774 394 756 512 756 C 630 756 746 774 842 816" stroke="#59B9FF" stroke-width="22" stroke-opacity="0.05" stroke-linecap="round" filter="url(#soft-blur)"/>
+    <ellipse cx="512" cy="566" rx="238" ry="268" fill="#3EBEFF" fill-opacity="0.08" filter="url(#soft-blur)"/>
+  </g>
+  <rect x="58" y="58" width="908" height="908" rx="214" fill="none" stroke="url(#frame-stroke)" stroke-width="4"/>
+  <rect x="74" y="74" width="876" height="876" rx="198" fill="none" stroke="#E1F7FF" stroke-opacity="0.07" stroke-width="3"/>
+  <g filter="url(#symbol-glow)" class="symbol-glow"><line x1="512" y1="744" x2="512" y2="602" />
+<line x1="512" y1="602" x2="392" y2="468" />
+<line x1="512" y1="602" x2="632" y2="468" />
+<line x1="392" y1="468" x2="312" y2="348" />
+<line x1="392" y1="468" x2="458" y2="332" />
+<line x1="632" y1="468" x2="566" y2="332" />
+<line x1="632" y1="468" x2="712" y2="348" />
+<line x1="312" y1="348" x2="232" y2="256" />
+<line x1="312" y1="348" x2="362" y2="204" />
+<line x1="458" y1="332" x2="470" y2="178" />
+<line x1="566" y1="332" x2="554" y2="178" />
+<line x1="712" y1="348" x2="662" y2="204" />
+<line x1="712" y1="348" x2="792" y2="256" /></g>
+  <g class="symbol-main"><line x1="512" y1="744" x2="512" y2="602" />
+<line x1="512" y1="602" x2="392" y2="468" />
+<line x1="512" y1="602" x2="632" y2="468" />
+<line x1="392" y1="468" x2="312" y2="348" />
+<line x1="392" y1="468" x2="458" y2="332" />
+<line x1="632" y1="468" x2="566" y2="332" />
+<line x1="632" y1="468" x2="712" y2="348" />
+<line x1="312" y1="348" x2="232" y2="256" />
+<line x1="312" y1="348" x2="362" y2="204" />
+<line x1="458" y1="332" x2="470" y2="178" />
+<line x1="566" y1="332" x2="554" y2="178" />
+<line x1="712" y1="348" x2="662" y2="204" />
+<line x1="712" y1="348" x2="792" y2="256" /></g>
+  <g class="symbol-core"><line x1="512" y1="744" x2="512" y2="602" />
+<line x1="512" y1="602" x2="392" y2="468" />
+<line x1="512" y1="602" x2="632" y2="468" />
+<line x1="392" y1="468" x2="312" y2="348" />
+<line x1="392" y1="468" x2="458" y2="332" />
+<line x1="632" y1="468" x2="566" y2="332" />
+<line x1="632" y1="468" x2="712" y2="348" />
+<line x1="312" y1="348" x2="232" y2="256" />
+<line x1="312" y1="348" x2="362" y2="204" />
+<line x1="458" y1="332" x2="470" y2="178" />
+<line x1="566" y1="332" x2="554" y2="178" />
+<line x1="712" y1="348" x2="662" y2="204" />
+<line x1="712" y1="348" x2="792" y2="256" /></g>
+  <g><circle cx="512" cy="602" r="11" class="joint" />
+<circle cx="392" cy="468" r="9" class="joint" />
+<circle cx="632" cy="468" r="9" class="joint" />
+<circle cx="312" cy="348" r="8" class="joint" />
+<circle cx="458" cy="332" r="8" class="joint" />
+<circle cx="566" cy="332" r="8" class="joint" />
+<circle cx="712" cy="348" r="8" class="joint" /></g>
+  <g filter="url(#node-glow)"><circle cx="232" cy="256" r="32" class="tip-glow" />
+<circle cx="362" cy="204" r="32" class="tip-glow" />
+<circle cx="470" cy="178" r="32" class="tip-glow" />
+<circle cx="554" cy="178" r="32" class="tip-glow" />
+<circle cx="662" cy="204" r="32" class="tip-glow" />
+<circle cx="792" cy="256" r="32" class="tip-glow" /></g>
+  <g><g class="tip-group"><circle cx="232" cy="256" r="21" class="tip-shell" />
+    <circle cx="232" cy="256" r="13" class="tip-core" />
+    <circle cx="227.0" cy="251.0" r="3.4" class="tip-spark" /></g>
+<g class="tip-group"><circle cx="362" cy="204" r="21" class="tip-shell" />
+    <circle cx="362" cy="204" r="13" class="tip-core" />
+    <circle cx="357.0" cy="199.0" r="3.4" class="tip-spark" /></g>
+<g class="tip-group"><circle cx="470" cy="178" r="21" class="tip-shell" />
+    <circle cx="470" cy="178" r="13" class="tip-core" />
+    <circle cx="465.0" cy="173.0" r="3.4" class="tip-spark" /></g>
+<g class="tip-group"><circle cx="554" cy="178" r="21" class="tip-shell" />
+    <circle cx="554" cy="178" r="13" class="tip-core" />
+    <circle cx="549.0" cy="173.0" r="3.4" class="tip-spark" /></g>
+<g class="tip-group"><circle cx="662" cy="204" r="21" class="tip-shell" />
+    <circle cx="662" cy="204" r="13" class="tip-core" />
+    <circle cx="657.0" cy="199.0" r="3.4" class="tip-spark" /></g>
+<g class="tip-group"><circle cx="792" cy="256" r="21" class="tip-shell" />
+    <circle cx="792" cy="256" r="13" class="tip-core" />
+    <circle cx="787.0" cy="251.0" r="3.4" class="tip-spark" /></g></g>
+</svg>

@@ -39,7 +39,7 @@ The checked-in project is local-first and desktop-only. There is no server, no d
 
 | Area | Technology |
 | --- | --- |
-| Language | Python 3.13+ |
+| Language | Python 3.14 |
 | GUI framework | PySide6 / Qt |
 | Main runtime | `Structura.py` |
 | Source entrypoint | `src/main.py` |
@@ -54,14 +54,14 @@ The checked-in project is local-first and desktop-only. There is no server, no d
 
 - The checked-in packaging pipeline is macOS-specific.
 - `Structura.spec` sets `LSMinimumSystemVersion` to `12.0`, so the packaged app targets macOS 12 or newer.
-- Source execution depends on Python 3.13+ and PySide6. It may run on other platforms supported by Qt, but this repository does not include Windows or Linux packaging artifacts.
+- Source execution depends on Python 3.14 and PySide6. It may run on other platforms supported by Qt, but this repository does not include Windows or Linux packaging artifacts.
 - The UI and release workflow are clearly optimized for macOS behavior and appearance.
 
 ## Prerequisites
 
 ### Required for source development
 
-- Python `3.13` or newer
+- Python `3.14` or newer
 - A virtual environment
 - PySide6
 - PyInstaller
@@ -108,7 +108,7 @@ source .venv/bin/activate
 Fallback with the standard library:
 
 ```bash
-python3.13 -m venv .venv
+python3.14 -m venv .venv
 source .venv/bin/activate
 ```
 
@@ -132,7 +132,7 @@ python -m pip install -U pyside6 pyinstaller ruff ty pytest
 python --version
 ```
 
-Expected: Python `3.13.x` or newer.
+Expected: Python `3.14.x` or newer.
 
 ### 5. Run the application from source
 
@@ -593,17 +593,9 @@ Expected outputs:
 - minimum macOS version: `12.0`
 - windowed build with `console=False`
 
-### Public release note
+### Signing
 
-The current scripted build is ad-hoc signed, not Developer ID signed and not notarized.
-
-That is fine for local builds and internal testing, but for public macOS distribution you would typically add:
-
-1. Developer ID Application signing
-2. Apple notarization
-3. stapling the notarization ticket to the app or DMG
-
-Those steps are not currently automated in this repository.
+The scripted build signs ad-hoc (`Signing identity: -`, RazorBackRoar).
 
 ### Installing a prebuilt app
 
@@ -635,7 +627,7 @@ Fix:
 python --version
 ```
 
-Use Python `3.13+`.
+Use Python `3.14+`.
 
 ### `ModuleNotFoundError` or missing PySide6
 

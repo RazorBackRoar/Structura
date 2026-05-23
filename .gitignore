@@ -40,3 +40,23 @@ settings.local.json
 *.log
 *.tmp
 *.orig
+
+# Build staging
+Clean/
+
+# Release binaries — distribute via GitHub Releases
+*.dmg
+
+# Workspace symlinks — machine-local, do not commit
+skills
+.agent/
+.agents/
+
+# Session backups and local task files
+AGENTS.md.backup.*
+INSTRUCTIONS.md
+
+# IDE tool files and personal notes
+.impeccable.md
+"merge with read me .md"
+*.md.backup

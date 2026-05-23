@@ -6,7 +6,7 @@
 
 **Architecture:** Extend the QuickTime atom parser to extract width/height/rotation from `tkhd` atoms in the same traversal, add a `VideoInfo` dataclass with classification logic, renumber column constants, and update all display/sort callsites atomically (no broken commits). A `mdls` fallback covers cases where atom parsing fails on `.mov`/`.mp4`/`.m4v` files.
 
-**Tech Stack:** Python 3.13+, PySide6/Qt 6, macOS `mdls` subprocess (existing pattern), `math.atan2` for rotation, `@lru_cache` for atom parse results.
+**Tech Stack:** Python 3.14, PySide6/Qt 6, macOS `mdls` subprocess (existing pattern), `math.atan2` for rotation, `@lru_cache` for atom parse results.
 
 **Spec:** `docs/superpowers/specs/2026-03-28-video-metadata-columns-design.md`
 

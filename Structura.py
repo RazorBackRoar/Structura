@@ -20,11 +20,12 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QMimeData, QRectF, QThread, Signal
+from PySide6.QtCore import QMimeData, QPoint, QRectF, Qt, QThread, Signal
 from PySide6.QtGui import (
     QAction,
     QBrush,
     QColor,
+    QDrag,
     QDragEnterEvent,
     QDropEvent,
     QFont,
@@ -39,14 +40,14 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFileDialog,
-    QPlainTextEdit,
     QFrame,
     QGridLayout,
-    QHeaderView,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLayout,
     QMainWindow,
+    QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QScrollArea,
@@ -119,6 +120,7 @@ JUNK_FILES = {
     ".trashes",
     ".fseventsd",
     ".temporaryitems",
+    "icon\r",
 }
 
 VIDEO_EXTENSIONS = {
@@ -406,19 +408,13 @@ TOOLBAR_BG_GRADIENT = (
     " stop:1 #eef5ff)"
 )
 PANEL_BG_GRADIENT = (
-    "qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-    " stop:0 #ffffff,"
-    " stop:1 #f9fbff)"
+    "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #ffffff, stop:1 #f9fbff)"
 )
 ACCENT_PANEL_GRADIENT = (
-    "qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-    " stop:0 #f2f7ff,"
-    " stop:1 #e7f0ff)"
+    "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #f2f7ff, stop:1 #e7f0ff)"
 )
 PATH_CARD_GRADIENT = (
-    "qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-    " stop:0 #ffffff,"
-    " stop:1 #f3f8ff)"
+    "qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #ffffff, stop:1 #f3f8ff)"
 )
 
 
@@ -599,12 +595,21 @@ def tree_style(*, background: str) -> str:
             color: {C["text_secondary"]};
             border: none;
             border-bottom: 1px solid {C["border"]};
+            border-right: 1px solid {C["border"]};
             padding: 8px 10px;
             font-size: 11px;
             font-weight: 600;
         }}
+        QHeaderView::section:last {{
+            border-right: none;
+        }}
         QTreeWidget::item {{
             padding: 6px 6px;
+            border-right: 1px solid {C["border_light"]};
+            border-bottom: 1px solid {C["border_light"]};
+        }}
+        QTreeWidget::item:last {{
+            border-right: none;
         }}
         QTreeWidget::item:hover {{
             background: {C["surface_alt"]};
@@ -804,20 +809,20 @@ class ScanSnapshot:
 
 @dataclass(frozen=True)
 class FileExif:
-    gps: str | None = None    # formatted coordinates string or None
-    make: str | None = None   # camera/device make or None
+    gps: str | None = None  # formatted coordinates string or None
+    make: str | None = None  # camera/device make or None
     model: str | None = None  # camera/device model or None
 
 
 @dataclass(frozen=True)
 class VideoInfo:
-    width: int                 # pixels (rotation-corrected)
-    height: int                # pixels (rotation-corrected)
-    raw_fps: float | None      # actual fps (29.97, 59.94, etc.)
-    resolution: str            # "4K", "1080p", "720p", "HD", "SD"
-    orientation: str           # "V" or "W"
-    fps_category: int | None   # 30, 60, or None (slo-mo/unknown)
-    is_edited: bool            # True → show ✂️
+    width: int  # pixels (rotation-corrected)
+    height: int  # pixels (rotation-corrected)
+    raw_fps: float | None  # actual fps (29.97, 59.94, etc.)
+    resolution: str  # "4K", "1080p", "720p", "HD", "SD"
+    orientation: str  # "V" or "W"
+    fps_category: int | None  # 30, 60, or None (slo-mo/unknown)
+    is_edited: bool  # True → show ✂️
 
 
 def _classify_resolution(width: int, height: int) -> str:
@@ -894,6 +899,8 @@ def collect_sortable_extensions(
 
         for entry in entries:
             try:
+                if is_junk(entry.name):
+                    continue
                 if entry.is_dir():
                     if not include_hidden and entry.name.startswith("."):
                         continue
@@ -1007,7 +1014,6 @@ def _format_browser_datetime(timestamp: float | None) -> str:
         return ""
     hour = dt.strftime("%I").lstrip("0") or "0"
     return f"{dt.strftime('%b')} {dt.day}, {dt.year}, {hour}:{dt:%M %p}"
-
 
 
 def set_elided_label_text(
@@ -1224,11 +1230,20 @@ def _mdls_video_dimensions(path: Path) -> tuple[int, int] | None:
     """Read pixel dimensions from macOS Spotlight (fallback when atom parsing fails)."""
     try:
         result = subprocess.run(
-            ["mdls", "-raw", "-nullMarker", "",
-             "-name", "kMDItemPixelWidth",
-             "-name", "kMDItemPixelHeight",
-             str(path)],
-            capture_output=True, text=True, timeout=3
+            [
+                "mdls",
+                "-raw",
+                "-nullMarker",
+                "",
+                "-name",
+                "kMDItemPixelWidth",
+                "-name",
+                "kMDItemPixelHeight",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         if result.returncode != 0:
             return None
@@ -1269,7 +1284,9 @@ def _file_browser_metadata(
                 w, h = dims
                 fps_cat, is_edited = _classify_fps(None)
                 video_info = VideoInfo(
-                    width=w, height=h, raw_fps=None,
+                    width=w,
+                    height=h,
+                    raw_fps=None,
                     resolution=_classify_resolution(w, h),
                     orientation="V" if h > w else "W",
                     fps_category=fps_cat,
@@ -1294,19 +1311,20 @@ def _exif_from_pillow(path: str) -> tuple[str | None, str | None, str | None]:
     """Read GPS/Make/Model from image EXIF via Pillow. Returns (gps_str, make, model)."""
     try:
         from PIL import Image
+
         with Image.open(path) as img:
             exif_data = img.getexif()  # public API (works for JPEG/PNG/TIFF/WebP)
             if not exif_data:
                 return None, None, None
 
-            make = exif_data.get(271)   # Make tag
+            make = exif_data.get(271)  # Make tag
             model = exif_data.get(272)  # Model tag
             gps_ifd = exif_data.get_ifd(0x8825)  # GPSInfo sub-IFD (returns dict)
 
             gps_str = None
             if gps_ifd:
-                lat_ref = gps_ifd.get(1)   # 'N' or 'S'
-                lon_ref = gps_ifd.get(3)   # 'E' or 'W'
+                lat_ref = gps_ifd.get(1)  # 'N' or 'S'
+                lon_ref = gps_ifd.get(3)  # 'E' or 'W'
                 # Don't default hemisphere — returning None is safer than guessing
                 if lat_ref and lon_ref:
                     lat = _dms_to_decimal(gps_ifd.get(2), lat_ref)
@@ -1317,9 +1335,11 @@ def _exif_from_pillow(path: str) -> tuple[str | None, str | None, str | None]:
                             f"{abs(lon):.4f}° {'E' if lon >= 0 else 'W'}"
                         )
 
-            return (gps_str,
-                    str(make).strip() if make else None,
-                    str(model).strip() if model else None)
+            return (
+                gps_str,
+                str(make).strip() if make else None,
+                str(model).strip() if model else None,
+            )
     except Exception:
         return None, None, None
 
@@ -1327,15 +1347,27 @@ def _exif_from_pillow(path: str) -> tuple[str | None, str | None, str | None]:
 def _exif_from_mdls(path: str) -> tuple[str | None, str | None, str | None]:
     """Read GPS/Make/Model from macOS Spotlight mdls. Works for HEIC/video/any type."""
     import subprocess
+
     try:
         result = subprocess.run(
-            ["mdls", "-raw", "-nullMarker", "",
-             "-name", "kMDItemAcquisitionMake",
-             "-name", "kMDItemAcquisitionModel",
-             "-name", "kMDItemLatitude",
-             "-name", "kMDItemLongitude",
-             path],
-            capture_output=True, text=True, timeout=3
+            [
+                "mdls",
+                "-raw",
+                "-nullMarker",
+                "",
+                "-name",
+                "kMDItemAcquisitionMake",
+                "-name",
+                "kMDItemAcquisitionModel",
+                "-name",
+                "kMDItemLatitude",
+                "-name",
+                "kMDItemLongitude",
+                path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         if result.returncode != 0:
             return None, None, None
@@ -1362,11 +1394,21 @@ def _exif_from_mdls(path: str) -> tuple[str | None, str | None, str | None]:
         return None, None, None
 
 
-_IMAGE_EXIF_EXTS = frozenset({
-    ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".png", ".webp",
-    ".heic", ".heif",  # iPhone default formats (pillow-heif plugin if available, else mdls)
-    ".dng",            # DNG is TIFF-based — Pillow can read its EXIF natively
-})
+_IMAGE_EXIF_EXTS = frozenset(
+    {
+        ".jpg",
+        ".jpeg",
+        ".tiff",
+        ".tif",
+        ".bmp",
+        ".png",
+        ".webp",
+        ".heic",
+        ".heif",  # iPhone default formats (pillow-heif plugin if available, else mdls)
+        ".dng",  # DNG is TIFF-based — Pillow can read its EXIF natively
+    }
+)
+
 
 def _read_file_exif(path: str, ext: str) -> FileExif:
     """Read GPS/Make/Model. Tries Pillow first for images, then mdls."""
@@ -1607,6 +1649,7 @@ class ScanWorker(QThread):
 # ---------------------------------------------------------------------------
 class MetadataWorker(QThread):
     """Background worker that reads GPS/Make/Model EXIF for a list of file paths."""
+
     chunk_ready = Signal(dict)  # emits dict[str, FileExif]
 
     def __init__(self, file_paths: list[tuple[str, str]]):
@@ -1679,6 +1722,8 @@ class SortWorker(QThread):
 
             for entry in entries:
                 try:
+                    if is_junk(entry.name):
+                        continue
                     if entry.is_dir():
                         if not self._include_hidden and entry.name.startswith("."):
                             continue
@@ -1810,6 +1855,7 @@ class AboutDialog(QDialog):
         """)
 
         import platform
+
         arch = platform.machine()
         bundle_size = _app_bundle_size()
 
@@ -2067,13 +2113,21 @@ class PieChart(QWidget):
         label_font.setBold(True)
         painter.setFont(label_font)
         painter.setPen(QColor(C["text_secondary"]))
-        painter.drawText(QRectF(inner_offset - 4, inner_offset + 12, inner_size + 8, 12), Qt.AlignCenter, "FILES")
+        painter.drawText(
+            QRectF(inner_offset - 4, inner_offset + 12, inner_size + 8, 12),
+            Qt.AlignCenter,
+            "FILES",
+        )
 
         total_font = QFont(APP_FONT_FAMILY, 16)
         total_font.setBold(True)
         painter.setFont(total_font)
         painter.setPen(QColor(C["heading"]))
-        painter.drawText(QRectF(inner_offset - 6, inner_offset + 28, inner_size + 12, 24), Qt.AlignCenter, str(self._total))
+        painter.drawText(
+            QRectF(inner_offset - 6, inner_offset + 28, inner_size + 12, 24),
+            Qt.AlignCenter,
+            str(self._total),
+        )
         painter.end()
 
 
@@ -2194,9 +2248,7 @@ class HeroFlowItem(QFrame):
 
         detail_lbl = QLabel(detail)
         detail_lbl.setWordWrap(True)
-        detail_lbl.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 13px;"
-        )
+        detail_lbl.setStyleSheet(f"color: {C['text_secondary']}; font-size: 13px;")
         text_layout.addWidget(detail_lbl)
 
         layout.addWidget(text_col, 1)
@@ -2221,15 +2273,11 @@ class HeroFolderChip(QFrame):
         layout.setSpacing(2)
 
         label_row = QLabel(f"📁 {label}")
-        label_row.setStyleSheet(
-            f"color: {color}; font-size: 15px; font-weight: 700;"
-        )
+        label_row.setStyleSheet(f"color: {color}; font-size: 15px; font-weight: 700;")
         layout.addWidget(label_row)
 
         detail_row = QLabel(detail)
-        detail_row.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 12px;"
-        )
+        detail_row.setStyleSheet(f"color: {C['text_secondary']}; font-size: 12px;")
         layout.addWidget(detail_row)
 
 
@@ -2267,9 +2315,7 @@ class HeroPreviewLegendItem(QFrame):
         text_layout.addWidget(title_lbl)
 
         detail_lbl = QLabel(detail)
-        detail_lbl.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 12px;"
-        )
+        detail_lbl.setStyleSheet(f"color: {C['text_secondary']}; font-size: 12px;")
         text_layout.addWidget(detail_lbl)
 
         layout.addWidget(text_col, 1)
@@ -2315,8 +2361,6 @@ class WorkspaceHero(QFrame):
             }}
         """)
         self.setMinimumHeight(520)
-        self.setMinimumWidth(1100)
-        self.setMaximumWidth(1220)
 
         root_layout = QHBoxLayout(self)
         root_layout.setContentsMargins(40, 40, 40, 40)
@@ -2364,9 +2408,19 @@ class WorkspaceHero(QFrame):
         flow_layout.setContentsMargins(0, 0, 0, 0)
         flow_layout.setSpacing(0)
         self._flow_items = [
-            HeroFlowItem("01", "Map the structure", "Build the tree and show nested folders."),
-            HeroFlowItem("02", "See the file mix", "Spot the dominant file types before you clean up."),
-            HeroFlowItem("03", "Create clean folders", "Sort media into JPG, PNG, MP4, and other buckets."),
+            HeroFlowItem(
+                "01", "Map the structure", "Build the tree and show nested folders."
+            ),
+            HeroFlowItem(
+                "02",
+                "See the file mix",
+                "Spot the dominant file types before you clean up.",
+            ),
+            HeroFlowItem(
+                "03",
+                "Create clean folders",
+                "Sort media into JPG, PNG, MP4, and other buckets.",
+            ),
         ]
         for item in self._flow_items:
             flow_layout.addWidget(item)
@@ -2374,9 +2428,7 @@ class WorkspaceHero(QFrame):
 
         self._helper = QLabel("")
         self._helper.setWordWrap(True)
-        self._helper.setStyleSheet(
-            f"color: {C['text_dim']}; font-size: 12px;"
-        )
+        self._helper.setStyleSheet(f"color: {C['text_dim']}; font-size: 12px;")
         left_layout.addWidget(self._helper)
         left_layout.addStretch()
 
@@ -2461,11 +2513,11 @@ class WorkspaceHero(QFrame):
 
         preview_layout.addWidget(sample_board)
 
-        self._preview_helper = QLabel("Drop anywhere in the window. Choose Folder stays in the toolbar.")
-        self._preview_helper.setWordWrap(True)
-        self._preview_helper.setStyleSheet(
-            f"color: {C['text_dim']}; font-size: 12px;"
+        self._preview_helper = QLabel(
+            "Drop anywhere in the window. Choose Folder stays in the toolbar."
         )
+        self._preview_helper.setWordWrap(True)
+        self._preview_helper.setStyleSheet(f"color: {C['text_dim']}; font-size: 12px;")
         preview_layout.addWidget(self._preview_helper)
         preview_layout.addStretch()
 
@@ -2482,7 +2534,9 @@ class WorkspaceHero(QFrame):
         self._preview_copy.setText(
             "The preview keeps the labels simple, so you can scan a folder fast and know what each emoji means."
         )
-        self._preview_helper.setText("Good for downloads, export folders, camera rolls, and mixed personal files.")
+        self._preview_helper.setText(
+            "Good for downloads, export folders, camera rolls, and mixed personal files."
+        )
 
     def set_hover(self) -> None:
         self._title.setText("Release to scan this folder.")
@@ -2494,7 +2548,9 @@ class WorkspaceHero(QFrame):
         self._preview_copy.setText(
             "Once the scan finishes, the overview will show the file mix and the next organizing step."
         )
-        self._preview_helper.setText("You can keep dragging over any part of the empty window.")
+        self._preview_helper.setText(
+            "You can keep dragging over any part of the empty window."
+        )
 
     def set_scanning(self, headline: str, detail: str) -> None:
         self._title.setText(headline)
@@ -2579,8 +2635,13 @@ class OverviewStatChip(QFrame):
 
 
 class DestinationFolderChip(QFrame):
-    def __init__(self, label: str, detail: str, color: str, parent=None):
+    clicked = Signal(str)
+
+    def __init__(
+        self, label: str, detail: str, color: str, extension: str, parent=None
+    ):
         super().__init__(parent)
+        self._extension = extension
         self.setObjectName("destination_folder_chip")
         self.setStyleSheet(f"""
             QFrame#destination_folder_chip {{
@@ -2588,28 +2649,90 @@ class DestinationFolderChip(QFrame):
                 border: 1px solid {C["border_light"]};
                 border-radius: 14px;
             }}
+            QFrame#destination_folder_chip:hover {{
+                border: 1px solid {C["accent"]};
+                background: {C["surface_raised"]};
+            }}
             QLabel {{
                 background: transparent;
             }}
         """)
+        self.setCursor(Qt.PointingHandCursor)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(11, 8, 11, 8)
         layout.setSpacing(0)
 
         title = QLabel(label)
-        title.setStyleSheet(
-            f"color: {color}; font-size: 13px; font-weight: 760;"
-        )
+        title.setStyleSheet(f"color: {color}; font-size: 13px; font-weight: 760;")
         layout.addWidget(title)
 
         subtitle = QLabel(detail)
-        subtitle.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 11px;"
-        )
+        subtitle.setStyleSheet(f"color: {C['text_secondary']}; font-size: 11px;")
         layout.addWidget(subtitle)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit(self._extension)
+        super().mousePressEvent(event)
+
+
+class ExtensionTableRow(QFrame):
+    clicked = Signal(str)
+
+    def __init__(
+        self,
+        ext: str,
+        left: str,
+        right: str,
+        *,
+        is_header: bool = False,
+        even: bool = True,
+    ):
+        super().__init__()
+        self._ext = ext
+        h = QHBoxLayout(self)
+        h.setContentsMargins(16, 10, 16, 10)
+
+        lbl_l = QLabel(left)
+        lbl_r = QLabel(right)
+        lbl_r.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        if is_header:
+            bg = C["surface_panel"]
+            left_style = (
+                f"color: {C['text_secondary']}; font-size: 12px; font-weight: 700;"
+                f" letter-spacing: 0.8px; text-transform: uppercase;"
+                f" background: transparent;"
+            )
+            right_style = left_style
+        else:
+            bg = C["tbl_row_a"] if even else C["tbl_row_b"]
+            accent_color = extension_color(ext)
+            left_style = (
+                f"color: {accent_color}; font-size: 14px; font-weight: 600;"
+                f" background: transparent;"
+            )
+            right_style = (
+                f"color: {accent_color}; font-size: 14px; font-weight: 700;"
+                f" background: transparent;"
+            )
+            self.setCursor(Qt.PointingHandCursor)
+
+        self.setStyleSheet(f"background: {bg};")
+        lbl_l.setStyleSheet(left_style)
+        lbl_r.setStyleSheet(right_style)
+        h.addWidget(lbl_l)
+        h.addWidget(lbl_r)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self._ext:
+            self.clicked.emit(self._ext)
+        super().mousePressEvent(event)
 
 
 class ExtensionTable(QFrame):
+    clicked = Signal(str)
+
     def __init__(
         self,
         ext_counts: dict[str, int],
@@ -2640,63 +2763,18 @@ class ExtensionTable(QFrame):
             if item.widget():
                 item.widget().deleteLater()
 
-        header = self._row(self._left_header, "Files", is_header=True)
+        header = ExtensionTableRow("", self._left_header, "Files", is_header=True)
         self._layout.addWidget(header)
 
         for idx, (ext, count) in enumerate(self._ext_counts.items()):
-            self._layout.addWidget(
-                self._row(
-                    self._label_transform(ext),
-                    str(count),
-                    even=(idx % 2 == 0),
-                    ext=ext,
-                )
+            row = ExtensionTableRow(
+                ext,
+                self._label_transform(ext),
+                str(count),
+                even=(idx % 2 == 0),
             )
-
-    def _row(
-        self,
-        left: str,
-        right: str,
-        *,
-        is_header: bool = False,
-        even: bool = True,
-        ext: str = "",
-    ) -> QWidget:
-        w = QWidget()
-        h = QHBoxLayout(w)
-        h.setContentsMargins(16, 10, 16, 10)
-
-        lbl_l = QLabel(left)
-        lbl_r = QLabel(right)
-        lbl_r.setAlignment(Qt.AlignRight)
-
-        if is_header:
-            bg = C["surface_panel"]
-            left_style = (
-                f"color: {C['text_secondary']}; font-size: 12px; font-weight: 700;"
-                f" letter-spacing: 0.8px; text-transform: uppercase;"
-                f" background: transparent;"
-            )
-            right_style = left_style
-        else:
-            bg = C["tbl_row_a"] if even else C["tbl_row_b"]
-            accent_color = extension_color(ext)
-            left_style = (
-                f"color: {accent_color}; font-size: 14px; font-weight: 600;"
-                f" background: transparent;"
-            )
-            right_style = (
-                f"color: {accent_color}; font-size: 14px; font-weight: 700;"
-                f" background: transparent;"
-            )
-
-        w.setStyleSheet(f"background: {bg};")
-        lbl_l.setStyleSheet(left_style)
-        lbl_r.setStyleSheet(right_style)
-        h.addWidget(lbl_l)
-        h.addWidget(lbl_r)
-
-        return w
+            row.clicked.connect(self.clicked.emit)
+            self._layout.addWidget(row)
 
 
 class PieChartLegend(QWidget):
@@ -2963,11 +3041,15 @@ def _tree_preview_lines(
 
     walk(tree_data)
     if overflow["count"] > 0 and len(lines) < max_lines + 1:
-        lines.append(f"└── … {overflow['count']} more item{'s' if overflow['count'] != 1 else ''}")
+        lines.append(
+            f"└── … {overflow['count']} more item{'s' if overflow['count'] != 1 else ''}"
+        )
     return lines
 
 
-def apply_tree_item_colors(item: QTreeWidgetItem, *, is_dir: bool, ext: str = "") -> None:
+def apply_tree_item_colors(
+    item: QTreeWidgetItem, *, is_dir: bool, ext: str = ""
+) -> None:
     color = QColor(C["folder_color"] if is_dir else extension_color(ext))
     item.setForeground(0, color)
     item.setForeground(1, color)
@@ -3033,27 +3115,68 @@ def _tree_item_type_label(*, is_dir: bool, ext: str) -> str:
 
 _EXT_TO_EMOJI: dict[str, str] = {
     # Images
-    ".jpg": "🖼️", ".jpeg": "🖼️", ".png": "🖼️", ".gif": "🖼️",
-    ".bmp": "🖼️", ".tiff": "🖼️", ".tif": "🖼️", ".webp": "🖼️",
-    ".heic": "🖼️", ".heif": "🖼️", ".svg": "🖼️",
-    ".raw": "🖼️", ".cr2": "🖼️", ".cr3": "🖼️", ".nef": "🖼️",
-    ".arw": "🖼️", ".dng": "🖼️", ".orf": "🖼️", ".rw2": "🖼️",
+    ".jpg": "🖼️",
+    ".jpeg": "🖼️",
+    ".png": "🖼️",
+    ".gif": "🖼️",
+    ".bmp": "🖼️",
+    ".tiff": "🖼️",
+    ".tif": "🖼️",
+    ".webp": "🖼️",
+    ".heic": "🖼️",
+    ".heif": "🖼️",
+    ".svg": "🖼️",
+    ".raw": "🖼️",
+    ".cr2": "🖼️",
+    ".cr3": "🖼️",
+    ".nef": "🖼️",
+    ".arw": "🖼️",
+    ".dng": "🖼️",
+    ".orf": "🖼️",
+    ".rw2": "🖼️",
     # Video
-    ".mp4": "🎬", ".mov": "🎬", ".avi": "🎬", ".mkv": "🎬",
-    ".wmv": "🎬", ".flv": "🎬", ".webm": "🎬", ".m4v": "🎬",
-    ".3gp": "🎬", ".mts": "🎬", ".m2ts": "🎬",
+    ".mp4": "🎬",
+    ".mov": "🎬",
+    ".avi": "🎬",
+    ".mkv": "🎬",
+    ".wmv": "🎬",
+    ".flv": "🎬",
+    ".webm": "🎬",
+    ".m4v": "🎬",
+    ".3gp": "🎬",
+    ".mts": "🎬",
+    ".m2ts": "🎬",
     # Audio
-    ".mp3": "🎵", ".wav": "🎵", ".aac": "🎵", ".m4a": "🎵",
-    ".flac": "🎵", ".ogg": "🎵", ".wma": "🎵", ".aiff": "🎵", ".alac": "🎵",
+    ".mp3": "🎵",
+    ".wav": "🎵",
+    ".aac": "🎵",
+    ".m4a": "🎵",
+    ".flac": "🎵",
+    ".ogg": "🎵",
+    ".wma": "🎵",
+    ".aiff": "🎵",
+    ".alac": "🎵",
     # Documents
     ".pdf": "📄",
-    ".docx": "📝", ".doc": "📝", ".txt": "📝", ".rtf": "📝",
-    ".md": "📝", ".pages": "📝",
+    ".docx": "📝",
+    ".doc": "📝",
+    ".txt": "📝",
+    ".rtf": "📝",
+    ".md": "📝",
+    ".pages": "📝",
     # Spreadsheets
-    ".xlsx": "📊", ".xls": "📊", ".csv": "📊", ".numbers": "📊",
+    ".xlsx": "📊",
+    ".xls": "📊",
+    ".csv": "📊",
+    ".numbers": "📊",
     # Archives
-    ".zip": "🗜️", ".rar": "🗜️", ".tar": "🗜️", ".gz": "🗜️",
-    ".7z": "🗜️", ".dmg": "🗜️", ".iso": "🗜️",
+    ".zip": "🗜️",
+    ".rar": "🗜️",
+    ".tar": "🗜️",
+    ".gz": "🗜️",
+    ".7z": "🗜️",
+    ".dmg": "🗜️",
+    ".iso": "🗜️",
 }
 
 
@@ -3163,7 +3286,9 @@ def _apply_tree_item_metadata(
     metadata: TreeItemMetadata,
     folder_item_count: int = 0,
 ) -> None:
-    _ext_key = f".{metadata.type_label.lower()}" if metadata.type_label != "folder" else ""
+    _ext_key = (
+        f".{metadata.type_label.lower()}" if metadata.type_label != "folder" else ""
+    )
     _is_video = _ext_key in VIDEO_EXTENSIONS
     _is_media = _is_video or _ext_key in IMAGE_EXTENSIONS
 
@@ -3191,16 +3316,27 @@ def _apply_tree_item_metadata(
         item.setText(TREE_COLUMN_ORIENTATION, "")
 
     # Alignment
-    item.setData(TREE_COLUMN_SIZE, Qt.TextAlignmentRole, int(Qt.AlignRight | Qt.AlignVCenter))
-    for col in (TREE_COLUMN_RESOLUTION, TREE_COLUMN_FRAME_RATE, TREE_COLUMN_EDITED,
-                TREE_COLUMN_ORIENTATION, TREE_COLUMN_GPS, TREE_COLUMN_MAKE, TREE_COLUMN_MODEL):
+    item.setData(
+        TREE_COLUMN_SIZE, Qt.TextAlignmentRole, int(Qt.AlignRight | Qt.AlignVCenter)
+    )
+    for col in (
+        TREE_COLUMN_RESOLUTION,
+        TREE_COLUMN_FRAME_RATE,
+        TREE_COLUMN_EDITED,
+        TREE_COLUMN_ORIENTATION,
+        TREE_COLUMN_GPS,
+        TREE_COLUMN_MAKE,
+        TREE_COLUMN_MODEL,
+    ):
         item.setData(col, Qt.TextAlignmentRole, int(Qt.AlignHCenter | Qt.AlignVCenter))
 
     item.setData(TREE_COLUMN_TITLE, Qt.UserRole, path_str)
     if path_str:
         item.setToolTip(TREE_COLUMN_TITLE, path_str)
     item.setToolTip(TREE_COLUMN_CREATED, _format_browser_datetime(metadata.created_ts))
-    item.setToolTip(TREE_COLUMN_MODIFIED, _format_browser_datetime(metadata.modified_ts))
+    item.setToolTip(
+        TREE_COLUMN_MODIFIED, _format_browser_datetime(metadata.modified_ts)
+    )
 
     # Sort keys stored via TREE_SORT_ROLE
     name_key = sanitize_name(name).casefold()
@@ -3208,15 +3344,22 @@ def _apply_tree_item_metadata(
     created_key = (metadata.created_ts is None, metadata.created_ts or 0.0, name_key)
     modified_key = (metadata.modified_ts is None, metadata.modified_ts or 0.0, name_key)
     resolution_key = (vi is None, 0 if vi is None else vi.width * vi.height, name_key)
-    fps_key = (vi is None or vi.raw_fps is None,
-               vi.raw_fps if vi and vi.raw_fps else 0.0, name_key)
+    fps_key = (
+        vi is None or vi.raw_fps is None,
+        vi.raw_fps if vi and vi.raw_fps else 0.0,
+        name_key,
+    )
     orient_key = (vi is None, vi.orientation if vi else "", name_key)
 
     item.setData(TREE_COLUMN_TITLE, TREE_SORT_ROLE, (False, name_key))
     item.setData(TREE_COLUMN_SIZE, TREE_SORT_ROLE, size_key)
     item.setData(TREE_COLUMN_RESOLUTION, TREE_SORT_ROLE, resolution_key)
     item.setData(TREE_COLUMN_FRAME_RATE, TREE_SORT_ROLE, fps_key)
-    item.setData(TREE_COLUMN_EDITED, TREE_SORT_ROLE, (vi is None, not vi.is_edited if vi else True, name_key))
+    item.setData(
+        TREE_COLUMN_EDITED,
+        TREE_SORT_ROLE,
+        (vi is None, not vi.is_edited if vi else True, name_key),
+    )
     item.setData(TREE_COLUMN_ORIENTATION, TREE_SORT_ROLE, orient_key)
     item.setData(TREE_COLUMN_CREATED, TREE_SORT_ROLE, created_key)
     item.setData(TREE_COLUMN_MODIFIED, TREE_SORT_ROLE, modified_key)
@@ -3261,6 +3404,7 @@ def _configure_tree_item(
 
 def _sort_tree_data(data: list, column: int, ascending: bool) -> list:
     """Sort tree_data recursively in Python — avoids Qt's C++→Python __lt__ dispatch."""
+
     def key_fn(entry):
         name, is_dir, _children, _path, size_bytes, ext = entry
         name_k = sanitize_name(name).casefold()
@@ -3359,7 +3503,6 @@ def _expand_lazy_placeholder(tree: QTreeWidget, item: QTreeWidgetItem):
             idx += 1
             if children:
                 _populate_tree_lazy(tree, children, child, budget=[TREE_INITIAL_CAP])
-
 
 
 # ---------------------------------------------------------------------------
@@ -3474,9 +3617,7 @@ class FolderResultCard(QFrame):
             )
             root_layout.addWidget(creates_lbl)
         else:
-            empty_lbl = QLabel(
-                "No photos or videos to organize."
-            )
+            empty_lbl = QLabel("No photos or videos to organize.")
             empty_lbl.setWordWrap(True)
             empty_lbl.setStyleSheet(
                 f"color: {C['text_secondary']}; font-size: 12px;"
@@ -3507,8 +3648,7 @@ class FolderResultCard(QFrame):
         note_lbl = QLabel(" ".join(detail_parts))
         note_lbl.setWordWrap(True)
         note_lbl.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 12px;"
-            f" background: transparent;"
+            f"color: {C['text_secondary']}; font-size: 12px; background: transparent;"
         )
         root_layout.addWidget(note_lbl)
 
@@ -3528,7 +3668,9 @@ class FolderResultCard(QFrame):
 
         combined_errors = warnings[:3] + preview.errors[:3]
         if combined_errors:
-            warn_lbl = QLabel("\n".join(f"• {sanitize_name(w)}" for w in combined_errors))
+            warn_lbl = QLabel(
+                "\n".join(f"• {sanitize_name(w)}" for w in combined_errors)
+            )
             warn_lbl.setWordWrap(True)
             warn_lbl.setStyleSheet(
                 f"color: {C['warning']}; font-size: 12px; background: {C['warning_bg']};"
@@ -3694,9 +3836,7 @@ class MainWindow(QMainWindow):
         )
         title_layout.addWidget(app_title)
 
-        subtitle = QLabel(
-            "Drop a folder, review sortable extensions, then click Sort."
-        )
+        subtitle = QLabel("Drop a folder, review sortable extensions, then click Sort.")
         subtitle.setStyleSheet(
             f"color: {C['text_secondary']}; font-size: 12px; background: transparent;"
         )
@@ -4148,7 +4288,9 @@ class FolderTreePane(QFrame):
         self._configure_tree_widget()
         root.addWidget(self._tree, 1)
 
-        self._empty = QLabel("Drop or choose one folder to load the Structura workspace.")
+        self._empty = QLabel(
+            "Drop or choose one folder to load the Structura workspace."
+        )
         self._empty.setWordWrap(True)
         self._empty.setAlignment(Qt.AlignCenter)
         self._empty.setMinimumWidth(320)
@@ -4219,7 +4361,9 @@ class FolderTreePane(QFrame):
         self._tree.show()
         self._apply_column_widths()
 
-        sorted_data = _sort_tree_data(snapshot.tree_data, self._sort_column, self._sort_ascending)
+        sorted_data = _sort_tree_data(
+            snapshot.tree_data, self._sort_column, self._sort_ascending
+        )
         # Suppress repaints during bulk item creation to avoid per-insert redraws
         self._tree.setUpdatesEnabled(False)
         try:
@@ -4338,11 +4482,18 @@ class FolderTreePane(QFrame):
         for column, _ in TREE_COLUMN_WIDTHS:
             header.setSectionResizeMode(column, QHeaderView.Interactive)
         _centered_header_cols = (
-            TREE_COLUMN_RESOLUTION, TREE_COLUMN_FRAME_RATE, TREE_COLUMN_EDITED,
-            TREE_COLUMN_ORIENTATION, TREE_COLUMN_GPS, TREE_COLUMN_MAKE, TREE_COLUMN_MODEL,
+            TREE_COLUMN_RESOLUTION,
+            TREE_COLUMN_FRAME_RATE,
+            TREE_COLUMN_EDITED,
+            TREE_COLUMN_ORIENTATION,
+            TREE_COLUMN_GPS,
+            TREE_COLUMN_MAKE,
+            TREE_COLUMN_MODEL,
         )
         for col in _centered_header_cols:
-            self._tree.headerItem().setTextAlignment(col, Qt.AlignHCenter | Qt.AlignVCenter)
+            self._tree.headerItem().setTextAlignment(
+                col, Qt.AlignHCenter | Qt.AlignVCenter
+            )
 
         self._tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self._tree.setStyleSheet(tree_style(background=PANEL_BG_SOFT))
@@ -4371,9 +4522,284 @@ class FolderTreePane(QFrame):
             pass
 
 
+class DraggableTreeWidget(QTreeWidget):
+    def mimeTypes(self):
+        return ["text/uri-list"]
+
+    def mimeData(self, items):
+        mime = QMimeData()
+        urls = []
+        for item in items:
+            path_str = item.data(0, Qt.UserRole)
+            if path_str:
+                from PySide6.QtCore import QUrl
+
+                urls.append(QUrl.fromLocalFile(path_str))
+        mime.setUrls(urls)
+        return mime
+
+    def startDrag(self, supportedActions):
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+
+        drag = QDrag(self)
+        drag.setMimeData(self.mimeData(selected_items))
+
+        first_item = selected_items[0]
+        idx = self.indexFromItem(first_item, 0)
+        rect = self.visualRect(idx)
+
+        # Grab only the first column (the title) up to 350px width for a clean look
+        grab_width = min(rect.width(), 350)
+        rect.setWidth(grab_width)
+        pixmap = self.viewport().grab(rect)
+
+        drag.setPixmap(pixmap)
+        drag.setHotSpot(QPoint(15, rect.height() // 2))
+        drag.exec(Qt.CopyAction | Qt.MoveAction | Qt.LinkAction, Qt.CopyAction)
+
+
+class TrashDropZone(QLabel):
+    files_trashed = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__("🗑️ Drop to Trash")
+        self.setAlignment(Qt.AlignCenter)
+        self.setAcceptDrops(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self._idle_style = f"""
+            QLabel {{
+                background: {C["surface"]};
+                border: 1px dashed {C["border_light"]};
+                border-radius: 8px;
+                color: {C["text_secondary"]};
+                font-size: 13px;
+                font-weight: 600;
+                padding: 10px 20px;
+            }}
+        """
+        self._hover_style = f"""
+            QLabel {{
+                background: {C["warning_bg"]};
+                border: 1px solid {C["warning"]};
+                border-radius: 8px;
+                color: {C["warning"]};
+                font-size: 13px;
+                font-weight: 600;
+                padding: 10px 20px;
+            }}
+        """
+        self.setStyleSheet(self._idle_style)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self.setStyleSheet(self._hover_style)
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dragLeaveEvent(self, event):
+        self.setStyleSheet(self._idle_style)
+        event.accept()
+
+    def dropEvent(self, event: QDropEvent):
+        self.setStyleSheet(self._idle_style)
+        if event.mimeData().hasUrls():
+            paths = [
+                u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()
+            ]
+            if paths:
+                self.files_trashed.emit(paths)
+                event.acceptProposedAction()
+        else:
+            event.ignore()
+
+
+class ExtensionFilesWindow(QMainWindow):
+    file_selected = Signal(str)
+
+    def __init__(self, extension: str, files: list[tuple[str, int]], parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Files: {extension.upper()}")
+        self.resize(1000, 600)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+
+        self._extension = extension
+
+        # Build Toolbar
+        toolbar = QToolBar("Header")
+        toolbar.setMovable(False)
+        toolbar.setStyleSheet(f"""
+            QToolBar {{
+                background: {WINDOW_BG_GRADIENT};
+                border-bottom: 1px solid {C["border_light"]};
+                padding: 8px 14px;
+            }}
+        """)
+
+        back_btn = QPushButton("← Back")
+        back_btn.setCursor(Qt.PointingHandCursor)
+        back_btn.setStyleSheet(button_style(variant="secondary", compact=True))
+        back_btn.clicked.connect(self.close)
+        toolbar.addWidget(back_btn)
+
+        spacer1 = QWidget()
+        spacer1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        toolbar.addWidget(spacer1)
+
+        title_lbl = QLabel(f"Files: {extension.upper()}")
+        title_lbl.setStyleSheet(
+            f"font-size: 14px; font-weight: 700; color: {C['heading']};"
+        )
+        toolbar.addWidget(title_lbl)
+
+        spacer2 = QWidget()
+        spacer2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        toolbar.addWidget(spacer2)
+
+        self.addToolBar(toolbar)
+
+        central = QWidget()
+        central.setStyleSheet(f"background: {WINDOW_BG_GRADIENT};")
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        self._tree = DraggableTreeWidget()
+        self._tree.setSelectionMode(QTreeWidget.ExtendedSelection)
+        self._tree.setDragEnabled(True)
+
+        HEADERS = ["Title", "Date Created", "Date Modified", "Date Last Opened"]
+        self._tree.setHeaderLabels(HEADERS)
+        self._tree.setRootIsDecorated(False)
+        self._tree.setIndentation(0)
+        self._tree.setAlternatingRowColors(True)
+        self._tree.setUniformRowHeights(True)
+        self._tree.setTextElideMode(Qt.ElideRight)
+
+        header = self._tree.header()
+        header.setSectionsClickable(True)
+        header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        header.setMinimumSectionSize(36)
+        header.setStretchLastSection(True)
+        header.setSortIndicatorShown(True)
+
+        for i in range(len(HEADERS)):
+            header.setSectionResizeMode(i, QHeaderView.Interactive)
+
+        self._tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._tree.setStyleSheet(tree_style(background=WINDOW_BG_GRADIENT))
+
+        self._tree.itemDoubleClicked.connect(self._on_item_double_click)
+
+        self._tree.setColumnWidth(0, 350)
+        self._tree.setColumnWidth(1, 200)
+        self._tree.setColumnWidth(2, 200)
+        self._tree.setColumnWidth(3, 200)
+
+        # Populate
+        items = []
+        import os
+        from datetime import datetime
+
+        for path_str, size_bytes in files:
+            name = Path(path_str).name
+            item = QTreeWidgetItem()
+            item.setData(0, Qt.UserRole, path_str)
+            _style_tree_item_title(item, name=name, is_dir=False, ext=extension)
+
+            try:
+                stat = os.stat(path_str)
+
+                # Date Created
+                try:
+                    c_time = stat.st_birthtime
+                except AttributeError:
+                    c_time = stat.st_ctime
+                dt_c = datetime.fromtimestamp(c_time)
+                item.setText(1, dt_c.strftime("%b %d, %Y %I:%M %p"))
+                item.setData(1, Qt.UserRole, c_time)
+
+                # Date Modified
+                dt_m = datetime.fromtimestamp(stat.st_mtime)
+                item.setText(2, dt_m.strftime("%b %d, %Y %I:%M %p"))
+                item.setData(2, Qt.UserRole, stat.st_mtime)
+
+                # Date Last Opened (Accessed)
+                dt_a = datetime.fromtimestamp(stat.st_atime)
+                item.setText(3, dt_a.strftime("%b %d, %Y %I:%M %p"))
+                item.setData(3, Qt.UserRole, stat.st_atime)
+
+            except Exception:
+                pass
+
+            items.append(item)
+        self._tree.addTopLevelItems(items)
+
+        self._tree.setSortingEnabled(True)
+        self._tree.sortByColumn(0, Qt.AscendingOrder)
+
+        layout.addWidget(self._tree, 1)
+
+        bottom_bar = QWidget()
+        bottom_bar.setStyleSheet(f"""
+            background: {WINDOW_BG_GRADIENT};
+            border-top: 1px solid {C["border_light"]};
+        """)
+        bottom_layout = QHBoxLayout(bottom_bar)
+        bottom_layout.setContentsMargins(16, 8, 16, 8)
+        bottom_layout.addStretch()
+
+        self._trash_zone = TrashDropZone()
+        self._trash_zone.files_trashed.connect(self._on_files_trashed)
+        bottom_layout.addWidget(self._trash_zone)
+
+        layout.addWidget(bottom_bar)
+
+        self.setCentralWidget(central)
+
+    def _on_files_trashed(self, paths: list[str]):
+        import subprocess
+
+        for p in paths:
+            try:
+                subprocess.run(
+                    [
+                        "osascript",
+                        "-e",
+                        f'tell application "Finder" to delete POSIX file "{p}"',
+                    ],
+                    capture_output=True,
+                )
+            except Exception:
+                pass
+
+            for i in range(self._tree.topLevelItemCount() - 1, -1, -1):
+                item = self._tree.topLevelItem(i)
+                if item.data(0, Qt.UserRole) == p:
+                    self._tree.takeTopLevelItem(i)
+                    break
+
+    def _on_item_double_click(self, item: QTreeWidgetItem, column: int):
+        path_str = item.data(0, Qt.UserRole)
+        if path_str:
+            try:
+                subprocess.Popen(["open", "-R", path_str])
+            except OSError:
+                pass
+
+
 class AnalyzerDashboard(QWidget):
     sort_requested = Signal()
     media_mode_changed = Signal(str)
+    file_selected = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -4538,7 +4964,9 @@ class AnalyzerDashboard(QWidget):
 
         self._table_divider = QFrame()
         self._table_divider.setFixedHeight(1)
-        self._table_divider.setStyleSheet(f"background: {C['border_light']}; border: none;")
+        self._table_divider.setStyleSheet(
+            f"background: {C['border_light']}; border: none;"
+        )
         overview_layout.addWidget(self._table_divider)
 
         self._table_intro = QLabel("Complete file-type list")
@@ -4672,9 +5100,9 @@ class AnalyzerDashboard(QWidget):
             frame.setMinimumHeight(76)
             frame.setStyleSheet(f"""
                 QFrame {{
-                    background: {C['surface']};
-                    border: 1px solid {C['border_light']};
-                    border-top: 1px solid {C['border_shine']};
+                    background: {C["surface"]};
+                    border: 1px solid {C["border_light"]};
+                    border-top: 1px solid {C["border_shine"]};
                     border-radius: 14px;
                 }}
             """)
@@ -4758,13 +5186,9 @@ class AnalyzerDashboard(QWidget):
         )
         action_layout.addWidget(sort_title)
 
-        sort_copy = QLabel(
-            "Create extension folders throughout the loaded folder."
-        )
+        sort_copy = QLabel("Create extension folders throughout the loaded folder.")
         sort_copy.setWordWrap(True)
-        sort_copy.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 12px;"
-        )
+        sort_copy.setStyleSheet(f"color: {C['text_secondary']}; font-size: 12px;")
         action_layout.addWidget(sort_copy)
 
         controls_row = QWidget()
@@ -4823,9 +5247,7 @@ class AnalyzerDashboard(QWidget):
 
         self._sort_note = QLabel("")
         self._sort_note.setWordWrap(True)
-        self._sort_note.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 12px;"
-        )
+        self._sort_note.setStyleSheet(f"color: {C['text_secondary']}; font-size: 12px;")
         action_layout.addWidget(self._sort_note)
         overview_layout.addWidget(self._action_section)
 
@@ -4941,7 +5363,9 @@ class AnalyzerDashboard(QWidget):
         else:
             stats_path = Path(stats.path)
             try:
-                relative_path = stats_path.relative_to(self._snapshot.root_path).as_posix()
+                relative_path = stats_path.relative_to(
+                    self._snapshot.root_path
+                ).as_posix()
             except ValueError:
                 relative_path = stats.path
             subtitle = f"Inside {self._snapshot.root_path.name} · {relative_path}"
@@ -4950,7 +5374,9 @@ class AnalyzerDashboard(QWidget):
 
         current_filter = self._extension_filter.currentData() or EXTENSION_FILTER_ALL
         if not filtered_counts:
-            self._analysis_intro.setText("No files match the current filter in this selection.")
+            self._analysis_intro.setText(
+                "No files match the current filter in this selection."
+            )
         elif current_filter != EXTENSION_FILTER_ALL:
             self._analysis_intro.setText(
                 f"Focused on {extension_display_label(str(current_filter))} files in this selection."
@@ -4971,9 +5397,7 @@ class AnalyzerDashboard(QWidget):
         else:
             empty = QLabel("No extensions match the current filter.")
             empty.setWordWrap(True)
-            empty.setStyleSheet(
-                f"color: {C['text_secondary']}; font-size: 13px;"
-            )
+            empty.setStyleSheet(f"color: {C['text_secondary']}; font-size: 13px;")
             self._chart_body_layout.addWidget(empty)
 
         _clear_layout(self._table_layout)
@@ -4987,6 +5411,7 @@ class AnalyzerDashboard(QWidget):
                 left_header="Extension",
                 label_transform=extension_display_label,
             )
+            table.clicked.connect(self._on_extension_chip_clicked)
             self._table_layout.addWidget(table)
 
         self._refresh_sort_section()
@@ -5023,7 +5448,11 @@ class AnalyzerDashboard(QWidget):
             f" letter-spacing: 0.4px;"
         )
         self._fh_preview_caption.setText(file_kind_label(ext))
-        self._fh_preview_detail.setText(" · ".join(preview_detail_parts) if preview_detail_parts else "Quick file summary")
+        self._fh_preview_detail.setText(
+            " · ".join(preview_detail_parts)
+            if preview_detail_parts
+            else "Quick file summary"
+        )
         self._fh_name_label.setText(sanitize_name(stats.name))
         self._fh_name_label.setToolTip(stats.name)
         set_elided_label_text(self._fh_path_label, stats.path, 720, Qt.ElideMiddle)
@@ -5062,7 +5491,10 @@ class AnalyzerDashboard(QWidget):
             return
 
         cache_key = (self._snapshot.root_path, self._include_hidden, self._media_mode)
-        if self._sort_preview_cache is not None and self._sort_preview_cache_key == cache_key:
+        if (
+            self._sort_preview_cache is not None
+            and self._sort_preview_cache_key == cache_key
+        ):
             preview = self._sort_preview_cache
         else:
             preview = collect_sortable_extensions(
@@ -5079,14 +5511,18 @@ class AnalyzerDashboard(QWidget):
                 "both": f"{preview.total_sortable:,} matching media files ready to organize.",
                 "images": f"{preview.total_sortable:,} photos ready to organize.",
                 "videos": f"{preview.total_sortable:,} videos ready to organize.",
-            }.get(self._media_mode, f"{preview.total_sortable:,} files ready to organize.")
+            }.get(
+                self._media_mode, f"{preview.total_sortable:,} files ready to organize."
+            )
             self._sort_preview.setText(preview_copy)
             for ext, count in preview.ext_counts.items():
                 chip = DestinationFolderChip(
                     extension_folder_name(ext),
                     f"{count:,} {pluralize(count, 'item')}",
                     extension_color(ext),
+                    ext,
                 )
+                chip.clicked.connect(self._on_extension_chip_clicked)
                 self._sort_targets_layout.addWidget(chip)
             self._sort_targets_layout.addStretch()
             self._sort_targets_host.show()
@@ -5121,6 +5557,18 @@ class AnalyzerDashboard(QWidget):
         except OSError:
             pass
 
+    def _on_extension_chip_clicked(self, extension: str) -> None:
+        if not self._snapshot:
+            return
+        files_of_ext = []
+        for path, stats in self._snapshot.stats_by_path.items():
+            if not stats.is_dir and path.lower().endswith(extension.lower()):
+                files_of_ext.append((path, stats.total_size_bytes))
+        if files_of_ext:
+            win = ExtensionFilesWindow(extension, files_of_ext, parent=self.window())
+            win.setAttribute(Qt.WA_DeleteOnClose)
+            win.show()
+
 
 class StructuraWindow(QMainWindow):
     def __init__(self):
@@ -5145,7 +5593,6 @@ class StructuraWindow(QMainWindow):
         self._build_menu()
         self._build_toolbar()
         self._build_body()
-        self._set_root_label(None)
         self._refresh_hidden_button()
 
     def _build_menu(self):
@@ -5243,53 +5690,13 @@ class StructuraWindow(QMainWindow):
         subtitle = QLabel(
             "Scan a folder, review file types, and organize root-level media when needed."
         )
-        subtitle.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 13px;"
-        )
+        subtitle.setStyleSheet(f"color: {C['text_secondary']}; font-size: 13px;")
         title_layout.addWidget(subtitle)
         toolbar.addWidget(title_block)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         toolbar.addWidget(spacer)
-
-        folder_row = QWidget()
-        folder_row.setStyleSheet("background: transparent;")
-        folder_layout = QHBoxLayout(folder_row)
-        folder_layout.setContentsMargins(0, 0, 0, 0)
-        folder_layout.setSpacing(8)
-
-        self._path_card = QFrame()
-        self._path_card.setObjectName("path_card")
-        self._path_card.setStyleSheet(path_card_style(loaded=False))
-        path_layout = QHBoxLayout(self._path_card)
-        path_layout.setContentsMargins(14, 10, 14, 10)
-        path_layout.setSpacing(8)
-        self._root_path_label = QLabel("")
-        self._root_path_label.setFixedWidth(PATH_LABEL_MAX_WIDTH)
-        self._root_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self._root_path_label.setStyleSheet(
-            f"color: {C['text_secondary']}; font-size: 13px;"
-        )
-        path_layout.addWidget(self._root_path_label)
-        folder_layout.addWidget(self._path_card)
-
-        toolbar.addWidget(folder_row)
-
-        choose_button = QPushButton("Choose Folder…")
-        choose_button.setCursor(Qt.PointingHandCursor)
-        choose_button.setStyleSheet(button_style(variant="primary"))
-        choose_button.setMinimumHeight(40)
-        choose_button.clicked.connect(self._open_folder_dialog)
-        toolbar.addWidget(choose_button)
-
-        self._hidden_button = QPushButton("Show Hidden")
-        self._hidden_button.setCursor(Qt.PointingHandCursor)
-        self._hidden_button.setCheckable(True)
-        self._hidden_button.setStyleSheet(toolbar_toggle_style(active=True))
-        self._hidden_button.setMinimumHeight(40)
-        self._hidden_button.clicked.connect(self._toggle_hidden)
-        toolbar.addWidget(self._hidden_button)
 
         self.addToolBar(toolbar)
 
@@ -5311,7 +5718,7 @@ class StructuraWindow(QMainWindow):
         body_layout.addWidget(self._status)
 
         self._workspace_hero = WorkspaceHero()
-        body_layout.addWidget(self._workspace_hero, 1, Qt.AlignCenter)
+        body_layout.addWidget(self._workspace_hero, 1)
 
         self._splitter = QSplitter(Qt.Horizontal)
         self._splitter.setChildrenCollapsible(False)
@@ -5339,8 +5746,9 @@ class StructuraWindow(QMainWindow):
             {scroll_bar_style(C["bg"])}
         """)
         self._dashboard = AnalyzerDashboard()
-        self._dashboard.media_mode_changed.connect(self._set_media_mode)
         self._dashboard.sort_requested.connect(self._sort_root_folder)
+        self._dashboard.media_mode_changed.connect(self._set_media_mode)
+        self._dashboard.file_selected.connect(self._on_tree_path_selected)
         self._dashboard_scroll.setWidget(self._dashboard)
         self._splitter.addWidget(self._dashboard_scroll)
         self._splitter.setStretchFactor(0, 1)
@@ -5391,34 +5799,8 @@ class StructuraWindow(QMainWindow):
         self._status.setText(message)
         self._status.show()
 
-    def _set_root_label(self, path: Path | None):
-        if path is None:
-            self._path_card.setStyleSheet(path_card_style(loaded=False))
-            self._root_path_label.setStyleSheet(
-                f"color: {C['text_secondary']}; font-size: 13px;"
-            )
-            set_elided_label_text(
-                self._root_path_label,
-                "No folder loaded",
-                PATH_LABEL_MAX_WIDTH,
-            )
-        else:
-            self._path_card.setStyleSheet(path_card_style(loaded=True))
-            self._root_path_label.setStyleSheet(
-                f"color: {C['text_dim']}; font-size: 13px;"
-            )
-            set_elided_label_text(
-                self._root_path_label,
-                str(path),
-                PATH_LABEL_MAX_WIDTH,
-                Qt.ElideMiddle,
-            )
-
     def _refresh_hidden_button(self) -> None:
-        self._hidden_button.setChecked(self._include_hidden)
-        self._hidden_button.setStyleSheet(
-            toolbar_toggle_style(active=self._include_hidden)
-        )
+        pass
 
     def _show_workspace_hero(
         self,
@@ -5447,9 +5829,9 @@ class StructuraWindow(QMainWindow):
         if not self._snapshot:
             return None
         path_str = self._selected_path or str(self._snapshot.root_path)
-        return self._snapshot.stats_by_path.get(path_str) or self._snapshot.stats_by_path.get(
-            str(self._snapshot.root_path)
-        )
+        return self._snapshot.stats_by_path.get(
+            path_str
+        ) or self._snapshot.stats_by_path.get(str(self._snapshot.root_path))
 
     def _refresh_dashboard(self, *, reset_filter: bool = False):
         stats = self._current_selected_stats()
@@ -5561,7 +5943,6 @@ class StructuraWindow(QMainWindow):
         self._snapshot = None
         self._selected_path = None
         self._tree_pane.reset()
-        self._set_root_label(path)
         self._status.hide()
         self._show_workspace_hero(
             "scanning",
@@ -5668,7 +6049,8 @@ def _set_macos_dock_name(name: str) -> None:
     try:
         import ctypes
         import ctypes.util
-        objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc"))  # type: ignore[arg-type]
+
+        objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc"))  # ty: ignore[invalid-argument-type]
         objc.objc_getClass.restype = ctypes.c_void_p
         objc.objc_getClass.argtypes = [ctypes.c_char_p]
         objc.sel_registerName.restype = ctypes.c_void_p
@@ -5691,7 +6073,12 @@ def _set_macos_dock_name(name: str) -> None:
         ns_key = objc.objc_msgSend(NSString, sel_str, b"CFBundleName")
 
         sel_set = objc.sel_registerName(b"setObject:forKey:")
-        objc.objc_msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+        objc.objc_msgSend.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        ]
         objc.objc_msgSend(info, sel_set, ns_name, ns_key)
     except Exception:
         pass

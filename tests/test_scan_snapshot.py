@@ -265,6 +265,24 @@ class ScanSnapshotTest(unittest.TestCase):
             self.assertEqual(hidden_on.total_files, 2)
             self.assertEqual(hidden_on.ext_counts, {".txt": 2})
 
+    def test_scan_folder_ignores_macos_custom_icon_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "Icon\r").write_bytes(b"")
+            (root / "visible.jpg").write_bytes(b"jpg")
+
+            snapshot = _require_snapshot(scan_folder(root, include_hidden=True))
+            preview = collect_sortable_extensions(
+                root,
+                include_hidden=True,
+                media_mode="both",
+            )
+
+            self.assertEqual(snapshot.total_files, 1)
+            self.assertEqual(snapshot.ext_counts, {".jpg": 1})
+            self.assertEqual(preview.total_sortable, 1)
+            self.assertEqual(preview.skipped_other, 0)
+
     def test_scan_folder_tracks_subtree_stats(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -611,7 +629,6 @@ class DashboardBehaviorTest(unittest.TestCase):
             win = StructuraWindow()
             win.show()
             win._current_root = root
-            win._set_root_label(root)
             win._on_snapshot_ready(snapshot)
             win._on_tree_path_selected(str(clip_path))
             self._app.processEvents()

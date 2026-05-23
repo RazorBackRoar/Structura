@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "structura"
 version = "0.1.0"
-requires-python = ">=3.13"
+requires-python = "==3.14.*"
 dependencies = [
     "pillow",
     "PySide6>=6.6.0,<7.0.0",
@@ -20,8 +20,6 @@ testpaths = ["tests"]
 extra-paths = [
     ".",
     "src",
-    "/Users/home/Library/Python/3.13/lib/python/site-packages",
-    "/opt/homebrew/lib/python3.13/site-packages",
 ]
 
 [tool.ty.rules]
@@ -29,7 +27,7 @@ unresolved-attribute = "ignore"
 
 [tool.ruff]
 line-length = 88
-target-version = "py313"
+target-version = "py314"
 
 [dependency-groups]
 dev = [
