@@ -57,9 +57,9 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'Structura',
         'CFBundleDisplayName': 'Structura',
-        'CFBundleShortVersionString': '1.0.0',
-        'CFBundleVersion': '1.0.0',
-        'CFBundleGetInfoString': 'Structura 1.0.0, © 2026 RazorBackRoar',
+        'CFBundleShortVersionString': '2.0.0',
+        'CFBundleVersion': '2.0.0',
+        'CFBundleGetInfoString': 'Structura 2.0.0, © 2026 RazorBackRoar',
         'NSHighResolutionCapable': True,
         'LSMinimumSystemVersion': '12.0',
         'NSHumanReadableCopyright': '© 2026 RazorBackRoar. MIT License.',

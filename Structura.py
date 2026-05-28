@@ -1881,7 +1881,7 @@ class AboutDialog(QDialog):
         layout.addSpacing(14)
 
         for label, value in [
-            ("Version", "1.0.0"),
+            ("Version", "2.0.0"),
             ("Architecture", arch),
             ("App Size", bundle_size),
             ("Copyright", "© 2026 RazorBackRoar"),

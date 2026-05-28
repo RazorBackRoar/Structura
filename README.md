@@ -1,6 +1,6 @@
 # Structura
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-brightgreen.svg)](https://support.apple.com/en-us/HT211814)
 [![PySide6](https://img.shields.io/badge/PySide6-Qt6-orange.svg)](https://doc.qt.io/qtforpython/)
@@ -62,7 +62,7 @@
 git clone https://github.com/RazorBackRoar/Structura.git
 cd Structura
 uv sync
-uv run python -m structura.main
+uv run python src/main.py
 ```
 
 ### Build
@@ -105,3 +105,16 @@ Structura/
 
 MIT License — see [LICENSE](LICENSE) for details.
 Copyright © 2026 RazorBackRoar
+
+<!-- razorcore:runtime:start -->
+## Runtime Requirements
+
+For users:
+- Download the macOS `.dmg` or `.app` release. Python does not need to be installed.
+
+For developers:
+- Primary development/build target: Python 3.14 with `uv`.
+- Source compatibility goal: Python 3.12-3.14 (best effort).
+- Setup: `uv sync`
+- Run: `uv run python src/main.py`
+<!-- razorcore:runtime:end -->
