@@ -50,7 +50,13 @@ create-dmg \
   "${DIST_DIR}/${APP_NAME}.app"
 
 echo ""
+echo "=== Cleaning up intermediate artifacts ==="
+rm -rf "${DIST_DIR}/${APP_NAME}.app"
+if [[ -d "${DIST_DIR}/${APP_NAME}" ]]; then
+    rm -rf "${DIST_DIR}/${APP_NAME}"
+fi
+
+echo ""
 echo "=== Done ==="
-echo "App:  ${DIST_DIR}/${APP_NAME}.app"
 echo "DMG:  ${DIST_DIR}/${APP_NAME}.dmg"
-du -sh "${DIST_DIR}/${APP_NAME}.app" "${DIST_DIR}/${APP_NAME}.dmg"
+du -sh "${DIST_DIR}/${APP_NAME}.dmg"

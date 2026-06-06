@@ -62,7 +62,7 @@
 git clone https://github.com/RazorBackRoar/Structura.git
 cd Structura
 uv sync
-uv run python src/main.py
+uv run python src/structura/main.py
 ```
 
 ### Build
@@ -116,5 +116,5 @@ For developers:
 - Primary development/build target: Python 3.14 with `uv`.
 - Source compatibility goal: Python 3.12-3.14 (best effort).
 - Setup: `uv sync`
-- Run: `uv run python src/main.py`
+- Run: `uv run python src/structura/main.py`
 <!-- razorcore:runtime:end -->

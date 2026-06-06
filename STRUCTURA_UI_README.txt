@@ -211,7 +211,7 @@ Optimize for clarity over decoration."
 Technical Notes
 ---------------
 Main source files:
-- src/main.py
+- src/structura/main.py
 - Structura.py
 
 Important current logic:

@@ -7,7 +7,7 @@ block_cipher = None
 ROOT = Path.cwd()
 
 a = Analysis(
-    ['src/main.py'],
+    ['src/structura/main.py'],
     pathex=[str(ROOT)],
     binaries=[],
     datas=[

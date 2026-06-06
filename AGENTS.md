@@ -8,8 +8,8 @@ Use this file with `../AGENTS.md`. It only records Structura-specific context.
 ## Purpose And Entry Points
 
 - Main app: `Structura.py` (single-file runtime, ~4,700 lines — intentional, do not split)
-- Source entrypoint: `src/main.py` (adds project root to `sys.path`, delegates to `Structura.main`)
-- Run locally: `uv run python src/main.py`
+- Source entrypoint: `src/structura/main.py` (adds project root to `sys.path`, delegates to `Structura.main`)
+- Run locally: `uv run python src/structura/main.py`
 - Build through workspace wrappers: `razorbuild Structura`
 - Full release build (code signing): `./build.sh`
 
@@ -39,7 +39,7 @@ with Qt coupling stays in `Structura.py`. When in doubt, keep it in the single f
 - `build.sh` has its own `create-dmg` call. DMG settings must stay in sync with the locked
   values in `../.razorcore/universal-build.sh`: `600×350, icon 100, (175,150), (425,150)`.
 - All application logic lives in `Structura.py` at the repo root — **do not split it into modules**.
-  `src/main.py` is only a thin path-fixing entrypoint.
+  `src/structura/main.py` is only a thin path-fixing entrypoint.
 - Frame rate is extracted from QuickTime atoms directly — no ffmpeg dependency.
 - `QT_QPA_PLATFORM=offscreen` is required for headless test runs (no display available).
 - `razorcore` is an editable dep at `../.razorcore`. Import it for shared utilities rather than
@@ -60,7 +60,7 @@ Add focused checks when relevant:
 - Scan/snapshot behavior: `uv run pytest tests/test_scan_snapshot.py -q`
 - Build entrypoint wiring: `uv run pytest tests/test_build_entrypoint.py -q`
 - Headless Qt: `QT_QPA_PLATFORM=offscreen uv run pytest tests/ -q`
-- UI or end-to-end flow: `uv run python src/main.py`
+- UI or end-to-end flow: `uv run python src/structura/main.py`
 
 ## CI Limitations
 

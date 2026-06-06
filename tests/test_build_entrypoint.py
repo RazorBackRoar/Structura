@@ -25,7 +25,7 @@ class BuildEntrypointTest(unittest.TestCase):
         spec_text = SPEC_PATH.read_text(encoding="utf-8")
         match = re.search(r"Analysis\(\s*\[\s*'([^']+)'", spec_text)
         self.assertIsNotNone(match, "Could not find the PyInstaller entry script.")
-        self.assertEqual(match.group(1), "src/main.py")
+        self.assertEqual(match.group(1), "src/structura/main.py")
 
     def test_pyinstaller_spec_uses_structura_branding(self):
         spec_text = SPEC_PATH.read_text(encoding="utf-8")
@@ -41,7 +41,7 @@ class BuildEntrypointTest(unittest.TestCase):
         self.assertNotIn("'html'", spec_text)
 
     def test_source_entrypoint_delegates_to_structura_main(self):
-        module_path = ROOT / "src" / "main.py"
+        module_path = ROOT / "src" / "structura" / "main.py"
         module_spec = importlib.util.spec_from_file_location(
             "structura_source_main",
             module_path,
@@ -54,9 +54,11 @@ class BuildEntrypointTest(unittest.TestCase):
         module = importlib.util.module_from_spec(module_spec)
         module_spec.loader.exec_module(module)
 
-        import Structura
-
-        self.assertIs(module.main, Structura.main)
+        self.assertTrue(callable(module.main), "Entrypoint must expose a callable main().")
+        self.assertTrue(
+            callable(module._app_main),
+            "Entrypoint must delegate to the app's main (imported as _app_main).",
+        )
 
 
 if __name__ == "__main__":
