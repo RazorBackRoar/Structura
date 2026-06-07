@@ -6,7 +6,7 @@ so type checkers resolve all symbols correctly on macOS.
 """
 
 # ruff: noqa: F401
-from Structura import (  # ty: ignore[unresolved-import]
+from Structura import (
     AnalyzerDashboard,
     FolderTreePane,
     ScanWorker,
