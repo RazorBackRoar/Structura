@@ -7,7 +7,7 @@ Use this file with `../AGENTS.md`. It only records Structura-specific context.
 
 ## Purpose And Entry Points
 
-- Main app: `Structura.py` (single-file runtime, ~4,700 lines — intentional, do not split)
+- Main app: `Structura.py` (single-file runtime, ~6,100 lines — intentional, do not split)
 - Source entrypoint: `src/structura/main.py` (adds project root to `sys.path`, delegates to `Structura.main`)
 - Run locally: `uv run python src/structura/main.py`
 - Build through workspace wrappers: `razorbuild Structura`
@@ -15,7 +15,7 @@ Use this file with `../AGENTS.md`. It only records Structura-specific context.
 
 ## Design Rationale: Single-File Architecture
 
-`Structura.py` is a single ~4,700-line file by deliberate choice — not by accident or neglect.
+`Structura.py` is a single ~6,100-line file by deliberate choice — not by accident or neglect.
 
 **Why:**
 - Structura's components (scanner, tree model, Qt delegate, paint routines, context menu,
@@ -34,10 +34,10 @@ with Qt coupling stays in `Structura.py`. When in doubt, keep it in the single f
 
 ## Non-Obvious Rules
 
-- `build.sh` is the primary release build path — it handles ad-hoc code signing in addition to
-  the PyInstaller bundle. `razorbuild Structura` runs the simpler universal wrapper.
-- `build.sh` has its own `create-dmg` call. DMG settings must stay in sync with the locked
-  values in `../.razorcore/universal-build.sh`: `600×350, icon 100, (175,150), (425,150)`.
+- `build.sh` is the primary release build path — it delegates to `../.razorcore/universal-build.sh`
+  which handles ad-hoc code signing, PyInstaller bundling, and the shared locked DMG layout.
+  `razorbuild Structura` runs the same path. Do **not** reintroduce a local `create-dmg` call.
+- DMG layout is the single shared config in `../.razorcore/dmg-settings.py` (500×360, icon 128).
 - All application logic lives in `Structura.py` at the repo root — **do not split it into modules**.
   `src/structura/main.py` is only a thin path-fixing entrypoint.
 - Frame rate is extracted from QuickTime atoms directly — no ffmpeg dependency.
