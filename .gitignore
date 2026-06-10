@@ -65,3 +65,17 @@ INSTRUCTIONS.md
 *.md.backup
 "merge with read me .md"
 merge with read me .md
+
+# ── Workspace standard hygiene (added 2026-06-09, appended only) ──
+Icon?
+.mypy_cache/
+.ty/
+env/
+*.spec.bak
+*.bak
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.mobileprovision
