@@ -37,7 +37,7 @@ target-version = "py314"
 
 [dependency-groups]
 dev = [
-    "pyinstaller>=6.0",
+    "pyinstaller>=6.21.0",
     "pytest>=9.0.2",
     "ruff>=0.15.4",
     "ty>=0.0.20",
